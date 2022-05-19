@@ -1,0 +1,608 @@
+Экран с картинками товаров, поиском и фильтром
+ 
+<Window x:Class="PuteshestviePoRossii4433.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PuteshestviePoRossii4433" xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="600" Width="1000" MinHeight="600" MinWidth="1000">
+    <Window.Resources>
+        <sys:String x:Key="NullImage">
+            pack://application:,,,/Resources/picture.png
+        </sys:String>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="2*"></RowDefinition>
+            <RowDefinition Height="5*"></RowDefinition>
+            <RowDefinition Height="0.5*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="5*"></ColumnDefinition>
+                <ColumnDefinition Width="5*"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <UniformGrid Columns="1" Rows="3" Grid.Column="0">
+                <Label HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Content="Введите текст для поиска:"></Label>
+                <Label HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Content="Выберите тип для поиска:"></Label>
+            </UniformGrid>
+            <UniformGrid Columns="1" Rows="3"
+                         Grid.Column="1">
+                <TextBox x:Name="TxtFindedTourName"
+                         TextChanged="TxtFindedTourName_TextChanged"
+                         Height="30" Width="200"
+                         HorizontalAlignment="Left"></TextBox>
+                <ComboBox Name="CmbType"
+                          SelectionChanged="CmbType_SelectionChanged"
+                          Height="30" Width="200"
+                          HorizontalAlignment="Left"
+                          DisplayMemberPath="Name"></ComboBox>
+                <CheckBox x:Name="ChbActual"
+                          Content="только актуальные туры"
+                          Checked="ChbActual_Checked"
+                          Unchecked="ChbActual_Unchecked"
+                          Height="30" Width="200"
+                          HorizontalAlignment="Left"></CheckBox>
+            </UniformGrid>
+        </Grid>
+        <ListView Grid.Row="1"
+                  x:Name="ListTours"
+                  HorizontalAlignment="Center"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel>
+                    </WrapPanel>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderThickness="1"
+                            BorderBrush="Black">
+                        <Grid Width="300" Height="200">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"></RowDefinition>
+                                <RowDefinition Height="5*"></RowDefinition>
+                                <RowDefinition Height="Auto"></RowDefinition>
+                                <RowDefinition Height="Auto"></RowDefinition>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0"
+                                       Text="{Binding Name}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"></TextBlock>
+                            <Image Grid.Row="1"
+                              Source="{Binding ImgPath, FallbackValue={StaticResource NullImage}}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"></Image>
+                            <TextBlock Grid.Row="2"
+                                       Text="{Binding FullViewPrice}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"></TextBlock>
+                            <UniformGrid Grid.Row="3" Rows="1" Columns="2">
+                                <TextBlock Text="{Binding State}"
+                                           Foreground="{Binding colorBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"></TextBlock>
+                                <TextBlock Text="{Binding FullTicketCount}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"></TextBlock>
+                            </UniformGrid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <Button x:Name="BtnShowHotelWindow" Grid.Row="2" Content="Отели"       
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                Click="BtnShowHotelWindow_Click"></Button>
+    </Grid>
+</Window>
+namespace PuteshestviePoRossii4433
+{
+    /// <summary>
+    /// Логика взаимодействия для MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private TESTDBSecondEntities _context = new TESTDBSecondEntities();
+        private List<Tour> _tours = new List<Tour>();
+        private string _SelectedType;
+        private string _FindedName;
+        public MainWindow()
+        {
+            InitializeComponent();
+            ListTours.ItemsSource = _context.Tour.OrderBy(tour => tour.Name).ToList();
+
+            List<Type> types = new List<Type>();
+            types.Add(new Type() { Name = "Все типы" });
+            types.AddRange(_context.Type.OrderBy(t => t.Name).ToList());
+
+            CmbType.ItemsSource = types;
+
+            this._tours = _context.Tour.ToList();
+        }
+
+        private void TxtFindedTourName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _FindedName = TxtFindedTourName.Text;
+
+            _tours = _context.Tour.OrderBy(t => t.Name).ToList();
+
+            RefreshTours();
+        }
+
+        private void RefreshTours()
+        {
+            if (CmbType.SelectedItem != null)
+            {
+                if ((CmbType.SelectedItem as Type).Name != "Все типы")
+                {
+                    Type type = CmbType.SelectedItem as Type;
+                    _SelectedType = type.Name;
+                    _tours = (from t in _tours
+                              from tn in t.Type
+                              where tn.Name == _SelectedType
+                              select t).ToList();
+                }
+                else if ((CmbType.SelectedItem as Type).Name == "Все типы")
+                {
+                    _tours = _context.Tour.OrderBy(t => t.Name).ToList();
+                }
+            }
+
+            if (TxtFindedTourName.Text != "")
+            {
+                _tours = _tours.OrderBy(t => t.Name).Where(t => t.Name.ToLower().Contains(_FindedName)).ToList();
+            }
+
+            if ((bool)ChbActual.IsChecked)
+            {
+                _tours = _tours.OrderBy(t => t.Name).Where(t => t.IsActual == true).ToList();
+            }
+
+            ListTours.ItemsSource = _tours;
+        }
+
+        private void CmbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _tours = _context.Tour.OrderBy(t => t.Name).ToList();
+
+            RefreshTours();
+        }
+
+        private void ChbActual_Checked(object sender, RoutedEventArgs e)
+        {
+            _tours = _context.Tour.OrderBy(t => t.Name).ToList();
+            RefreshTours();
+        }
+
+        private void ChbActual_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _tours = _context.Tour.OrderBy(t => t.Name).ToList();
+            RefreshTours();
+        }
+
+        private void BtnShowHotelWindow_Click(object sender, RoutedEventArgs e)
+        {
+            Windows.HotelWindow window = new Windows.HotelWindow();
+            window.ShowDialog();
+        }
+    }
+}
+ 
+Экран со списком товаров и кнопками добавить/обновить/удалить
+ 
+<Window x:Class="PuteshestviePoRossii4433.Windows.HotelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PuteshestviePoRossii4433.Windows"
+        mc:Ignorable="d"
+        Title="Окно отелей" Height="600" Width="1000" MinHeight="600" MinWidth="1000">
+    <Window.Resources>
+        <Style TargetType="Button" x:Key="PaginationButton">
+            <Setter Property="Background" Value="White"></Setter>
+            <Setter Property="Foreground" Value="#bae3e8"></Setter>
+            <Setter Property="FontSize" Value="40"></Setter>
+            <Setter Property="BorderBrush" Value="White"></Setter>
+        </Style>
+    </Window.Resources>
+        <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="4*"></RowDefinition>
+            <RowDefinition Height="1*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <DataGrid Grid.Row="0"
+ x:Name="DataGridHotels"
+ AutoGenerateColumns="False"
+ IsReadOnly="True"
+ ColumnWidth="*">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Название отеля"
+ Binding="{Binding Name}"></DataGridTextColumn>
+                <DataGridTextColumn Header="Количество звезд"
+ Binding="{Binding CountOfStars}"></DataGridTextColumn>
+                <DataGridTextColumn Header="Страна"
+ Binding="{Binding Country.Name}"></DataGridTextColumn>
+                <DataGridTextColumn Header="Количество имеющихся туров"> </DataGridTextColumn>
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button x:Name="BtnEditHotelInfo"
+ Content="Редактировать" 
+ Click="BtnEditHotelInfo_Click"></Button>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+        <WrapPanel Grid.Row="1"
+ VerticalAlignment="Center"
+ HorizontalAlignment="Center">
+            <StackPanel x:Name="PaginationPanel" Orientation="Horizontal">
+                <Button x:Name="GoFirstPageButton"
+ Content="&lt;&lt;"
+ FontSize="30" 
+ Click="GoFirstPageButton_Click"
+ Style="{StaticResource PaginationButton}"></Button>
+                <Button x:Name="GoPrevPageButton"
+ Content="&lt;"
+ FontSize="30"
+ Click="GoPrevPageButton_Click"
+ Margin="40 0 0 0"
+ Style="{StaticResource PaginationButton}"></Button>
+                <TextBox x:Name="TxtCurrentPageNumber" TextChanged="TxtCurrentPageNumber_TextChanged"
+ Width="50"
+ Margin="40 0 0 0"></TextBox>
+                <Label Name="LblTotalPages"
+ VerticalAlignment="Center"
+ HorizontalAlignment="Center"
+ Margin="40 0 0 0"></Label>
+                <Button x:Name="GoNextPageButton"
+ Content="&gt;"
+ FontSize="30"
+ Click="GoNextPageButton_Click"
+ Margin="40 0 0 0"
+ Style="{StaticResource PaginationButton}"></Button>
+                <Button x:Name="GoLastPageButton"
+ Content="&gt;&gt;"
+ FontSize="30"
+ Click="GoLastPageButton_Click"
+ Margin="40 0 0 0"
+ Style="{StaticResource PaginationButton}"></Button>
+            </StackPanel>
+            <Button x:Name="BtnAddHotel"
+ Click="BtnAddHotel_Click"
+ Content="Добавить отель"
+ Margin="40 0 0 0"></Button>
+        </WrapPanel>
+    </Grid>
+</Window>
+ 
+namespace PuteshestviePoRossii4433.Windows
+{
+    /// <summary>
+    /// Логика взаимодействия для HotelWindow.xaml
+    /// </summary>
+    public partial class HotelWindow : Window
+    {
+        public static TESTDBSecondEntities _context = new TESTDBSecondEntities();
+        private Hotel _hotel;
+        private int _currentPage = 1;
+        private int _maxPage = 0;
+        public HotelWindow()
+        {
+            InitializeComponent();
+
+            RefreshHotels();
+        }
+
+        public void RefreshHotels()
+        {
+            DataGridHotels.ItemsSource = _context.Hotel.OrderBy(h => h.Name).ToList();
+            _maxPage = Convert.ToInt32(Math.Ceiling(_context.Hotel.ToList().Count * 1.0 / 10));
+
+            var listHotels = _context.Hotel.ToList().Skip((_currentPage - 1) * 10).Take(10).ToList();
+
+            LblTotalPages.Content = "of " + _maxPage.ToString();
+            TxtCurrentPageNumber.Text = _currentPage.ToString();
+            DataGridHotels.ItemsSource = listHotels;
+        }
+
+        private void BtnEditHotelInfo_Click(object sender, RoutedEventArgs e)
+        {
+            EditHotelInfoWindow editHotelInfoWindow = new EditHotelInfoWindow(_context, sender, this);
+            editHotelInfoWindow.ShowDialog();
+
+        }
+        /// <summary>
+        /// Переход к первой странице
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoFirstPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            _currentPage = 1;
+            RefreshHotels();
+        }
+        /// <summary>
+        /// Переход к предыдущей странице
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoPrevPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            if(_currentPage - 1 < 1)
+            {
+                return;
+            }
+            _currentPage = _currentPage - 1;
+            RefreshHotels();
+        }
+        /// <summary>
+        /// Изменение номера текущей страницы
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TxtCurrentPageNumber_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if(_currentPage > 0 && _currentPage <= _maxPage && TxtCurrentPageNumber.Text != "")
+            {
+                _currentPage = Convert.ToInt32(TxtCurrentPageNumber.Text);
+                RefreshHotels();
+            }
+        }
+        /// <summary>
+        /// Переход к следующей странице
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoNextPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            if(_currentPage + 1 > _maxPage)
+            {
+                return;
+            }
+            _currentPage = _currentPage + 1;
+            RefreshHotels();
+        }
+        /// <summary>
+        /// Переход к последней странице
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoLastPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            _currentPage = _maxPage;
+            RefreshHotels();
+        }
+
+        private void BtnAddHotel_Click(object sender, RoutedEventArgs e)
+        {
+            AddHotelWindow addHotelWindow = new AddHotelWindow(_context, this);
+            addHotelWindow.ShowDialog();
+        }
+    }
+}
+ 
+Окно с добавлением товара
+ 
+<Window x:Class="PuteshestviePoRossii4433.Windows.AddHotelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PuteshestviePoRossii4433.Windows"
+        mc:Ignorable="d"
+        Title="Добавление отеля" Height="400" Width="300" MinHeight="400" MinWidth="300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Label Content="Название отеля:" Grid.Row="0"></Label>
+        <Label Content="Количество звезд: " Grid.Row="1"></Label>
+        <Label Content="Описание отеля: " Grid.Row="2"></Label>
+        <Label Content="Страна: " Grid.Row="3"></Label>
+        <TextBox x:Name="TxtNameHotel" Grid.Row="0" Grid.Column="1"></TextBox>
+        <TextBox x:Name="TxtCountStars" Grid.Row="1" Grid.Column="1"></TextBox>
+        <TextBox x:Name="TxtDescriptionHotel" Grid.Row="2" Grid.Column="1"></TextBox>
+        <ComboBox x:Name="CmbNameCountry" Grid.Row="3" Grid.Column="1" DisplayMemberPath="Name"></ComboBox>
+        <Button x:Name="BtnAddHotel" Grid.Row="4" Grid.ColumnSpan="2" Click="BtnAddHotel_Click" Content="Добавить"></Button>
+    </Grid>
+</Window>
+ 
+namespace PuteshestviePoRossii4433.Windows
+{
+    /// <summary>
+    /// Логика взаимодействия для AddHotelWindow.xaml
+    /// </summary>
+    public partial class AddHotelWindow : Window
+    {
+        private TESTDBSecondEntities _context;
+        private HotelWindow _window;
+        public AddHotelWindow(TESTDBSecondEntities tESTDBSecondEntities, HotelWindow hotelWindow)
+        {
+            InitializeComponent();
+            this._context = tESTDBSecondEntities;
+            this._window = hotelWindow;
+
+            CmbNameCountry.ItemsSource = _context.Country.ToList();
+        }
+
+        private void BtnAddHotel_Click(object sender, RoutedEventArgs e)
+        {
+            _context.Hotel.Add(new Hotel()
+            {
+                Name = TxtNameHotel.Text,
+                CountOfStars = Convert.ToInt32(TxtCountStars.Text),
+                Description = TxtDescriptionHotel.Text,
+                Country = CmbNameCountry.SelectedItem as Country
+            });
+            _context.SaveChanges();
+            _window.RefreshHotels();
+
+            this.Close();
+        }
+    }
+         }
+ 
+Окно с редактированием и удалением 
+ 
+<Window x:Class="PuteshestviePoRossii4433.Windows.EditHotelInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PuteshestviePoRossii4433.Windows"
+        mc:Ignorable="d"
+        Title="Окно редактирования отеля" Height="400" Width="300" MinHeight="400" MinWidth="300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Label Content="Название отеля:" Grid.Row="0"></Label>
+        <Label Content="Количество звезд: " Grid.Row="1"></Label>
+        <Label Content="Описание отеля: " Grid.Row="2"></Label>
+        <Label Content="Страна: " Grid.Row="3"></Label>
+        <TextBox x:Name="TxtNameHotel" Grid.Row="0" Grid.Column="1"></TextBox>
+        <TextBox x:Name="TxtCountStars" Grid.Row="1" Grid.Column="1"></TextBox>
+        <TextBox x:Name="TxtDescriptionHotel" Grid.Row="2" Grid.Column="1"> </TextBox>
+        <ComboBox x:Name="CmbNameCountry" Grid.Row="3" Grid.Column="1" DisplayMemberPath="Name"></ComboBox>
+        <Button x:Name="BtnDeleteHotel" Click="BtnDeleteHotel_Click" Content="Удалить" Grid.Row="4" Grid.Column="0"></Button>
+        <Button x:Name="BtnUpdateHotelInfo" Click="BtnUpdateHotelInfo_Click" Content="Обновить" Grid.Row="4" Grid.Column="1"></Button>
+    </Grid>
+</Window>
+ 
+namespace PuteshestviePoRossii4433.Windows
+{
+    /// <summary>
+    /// Логика взаимодействия для EditHotelInfoWindow.xaml
+    /// </summary>
+    public partial class EditHotelInfoWindow : Window
+    {
+        private TESTDBSecondEntities _context;
+        private Hotel _hotel;
+        private HotelWindow _window;
+        public EditHotelInfoWindow(TESTDBSecondEntities context, object o, HotelWindow hotelWindow)
+        {
+            InitializeComponent();
+            _hotel = (o as Button).DataContext as Hotel;
+            _context = context;
+            _window = hotelWindow;
+
+            CmbNameCountry.ItemsSource = _context.Country.ToList();
+
+            TxtNameHotel.Text = _hotel.Name;
+            TxtCountStars.Text = Convert.ToString(_hotel.CountOfStars);
+            TxtDescriptionHotel.Text = _hotel.Description;
+        }
+
+        private void BtnDeleteHotel_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(_hotel.Name, "Хотите удалить отель?", MessageBoxButton.YesNo);
+            if (result == MessageBoxResult.Yes)
+            {
+                _context.Hotel.Remove(_hotel);
+                _context.SaveChanges();
+
+                _window.RefreshHotels();
+                this.Close();
+            }
+        }
+
+        private void BtnUpdateHotelInfo_Click(object sender, RoutedEventArgs e)
+        {
+            _hotel.Name = TxtNameHotel.Text;
+            _hotel.CountOfStars = Convert.ToInt32(TxtCountStars.Text);
+            _hotel.Description = TxtDescriptionHotel.Text;
+            _hotel.Country = CmbNameCountry.SelectedItem as Country;
+
+            _window.RefreshHotels();
+            _context.SaveChanges();
+            this.Close();
+        }
+    }
+}
+ 
+Стили App.xaml
+<Application x:Class="PuteshestviePoRossii4433.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:PuteshestviePoRossii4433"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <Style TargetType="Label">
+            <Setter Property="FontFamily" Value="Comic Sans MS"></Setter>
+            <Setter Property="FontSize" Value="14"></Setter>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Comic Sans MS"></Setter>
+            <Setter Property="FontSize" Value="14"></Setter>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="Comic Sans MS"></Setter>
+            <Setter Property="FontSize" Value="14"></Setter>
+            <Setter Property="Background" Value="#fac716"></Setter>(желтый цвет)
+            <Setter Property="Foreground" Value="Black"></Setter>
+        </Style>
+    </Application.Resources>
+</Application>
+
+
+авторизация 
+
+public partial class MainWindow : Window
+    {
+        static public string dostup;
+        test1Entities connect = new test1Entities();
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            dostup = null;
+            connect.users.Load();
+        }
+        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (connect.users.Local.Where(x => x.login == LoginBox.Text && x.password == PasswordBox.Password).FirstOrDefault() != null)
+
+            {
+                dostup = connect.users.Local.Where(x => x.login == LoginBox.Text && x.password == PasswordBox.Password).FirstOrDefault().login;
+                MainWindow1 window1 = new MainWindow1();
+                window1.Show();
+                this.Close();
+            }
+            else
+
+            {
+                MessageBox.Show("Неверный Логин или пароль!");
+
+            }
+
+        }
+    }
+}
